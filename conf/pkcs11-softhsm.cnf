@@ -1,0 +1,8 @@
+{
+  "lib"         	: "/opt/server/softhsm/current/lib/softhsm/libsofthsm2.so",
+  "slot_id"     	: 288648064,
+  "pin"         	: "1234",
+  "key_label"    	: "SSL Root CA 02",
+  "connect_timeout_s"	: 30,
+  "read_timeout_s"	: 30
+}
