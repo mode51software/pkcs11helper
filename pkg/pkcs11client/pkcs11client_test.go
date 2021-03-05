@@ -9,6 +9,7 @@ import (
 	"github.com/miekg/pkcs11"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
+	"math/rand"
 	"testing"
 )
 
@@ -16,9 +17,11 @@ var pkcs11Client Pkcs11Client
 
 // test signing
 var caFiles = CASigningRequest{
-	csrFile:      "../../data/localhost512.csr.der",
-	caPubkeyFile: "../../data/softhsm-inter-0002.ca.pub.pem",
-	caCertFile:   "../../data/softhsm-inter-0002.ca.cert.der",
+	csrFile: "../../data/localhost512.csr.der",
+	//	caPubkeyFile: "../../data/softhsm-inter-0002.ca.pub.pem",
+	caPubkeyFile: "../../data/safenet-inter-0016.ca.pub.pem",
+	//	caCertFile:   "../../data/softhsm-inter-0002.ca.cert.der",
+	caCertFile: "../../data/safenet-inter-0016.ca.cert.der",
 }
 
 // test encryption
@@ -26,10 +29,18 @@ var keyConfig = KeyConfig{Label: "RSATestKey0020", Type: pkcs11.CKK_RSA}
 
 func init() {
 
-	pkcs11Client.HsmConfig = &HsmConfig{
+	/*	pkcs11Client.HsmConfig = &HsmConfig{
 		Lib:             "/opt/server/softhsm/current/lib/softhsm/libsofthsm2.so",
 		SlotId:          288648064,
 		Pin:             "1234",
+		ConnectTimeoutS: 10,
+		ReadTimeoutS:    30,
+	}*/
+
+	pkcs11Client.HsmConfig = &HsmConfig{
+		Lib:             "/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so",
+		SlotId:          3,
+		Pin:             "9e9515e556bd995e",
 		ConnectTimeoutS: 10,
 		ReadTimeoutS:    30,
 	}
@@ -75,7 +86,7 @@ func TestCASigner(t *testing.T) {
 				log.Info().Msgf("Loaded CA pubkey") // with E=%d", caPubKey.E)
 
 				var caSigner HsmSigner
-				caSigner.Serial = 4128
+				caSigner.Serial = int64(rand.Uint64())
 				caSigner.PublicKey = caPubKey
 				caSigner.KeyConfig.Label = "RSATestCAInterKey0002"
 				caSigner.Pkcs11Client = &pkcs11Client
@@ -174,5 +185,32 @@ func TestEncryptThenDecrypt(t *testing.T) {
 			log.Info().Msgf("decrypted text %s", decryptedText)
 			assert.Equal(t, plainText, decryptedText)
 		}
+	}
+}
+
+func TestCreateRSAKeyPair(t *testing.T) {
+	registerTest(t)
+
+	if err := pkcs11Client.CheckExistsCreateKeyPair(
+		&KeyConfig{Label: "testkeytest6", Id: []byte{31}, Type: pkcs11.CKK_RSA, KeyBits: 2048}); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateECKeyPair(t *testing.T) {
+	registerTest(t)
+
+	if err := pkcs11Client.CheckExistsCreateKeyPair(
+		&KeyConfig{Label: "testkey42", Id: []byte{42}, Type: pkcs11.CKK_EC, KeyBits: 521}); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDeleteKeyPair(t *testing.T) {
+	registerTest(t)
+
+	if err := pkcs11Client.DeleteKeyPair(
+		&KeyConfig{Label: "testkey42", Type: pkcs11.CKK_EC}); err != nil {
+		t.Error(err)
 	}
 }
