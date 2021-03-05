@@ -276,6 +276,10 @@ This is because the corresponding PKCS#11 "CKA_ID" object attribute can contain 
 
 `openssl ca -days 3650 -md sha512 -notext -extensions v3_intermediate_ca -engine pkcs11 -keyform engine -keyfile "pkcs11:id=%01" -in safenet-inter-02.ca.csr.pem -out safenet-inter-02.ca.cert.pem -cert safenet-root-01.ca.cert.pem -noemailDN`
 
+###### Convert to DER
+
+`openssl x509 -in ./safenet-inter-02.ca.cert.pem -outform DER -out safenet-inter-02.ca.cert.der`
+
 
 ###### Gen Root and Intermediate CA ECDSA Keys
 
@@ -307,20 +311,23 @@ This is because the corresponding PKCS#11 "CKA_ID" object attribute can contain 
 
 `openssl ca -days 3650 -md sha512 -notext -extensions v3_intermediate_ca -engine pkcs11 -keyform engine -keyfile "pkcs11:id=%03" -in safenet-inter-04.ca.csr.pem -out safenet-inter-04.ca.cert.pem -cert safenet-root-03.ca.cert.pem -noemailDN`
 
+###### Convert to DER
+
+`openssl x509 -in ./safenet-inter-04.ca.cert.pem -outform DER -out safenet-inter-04.ca.cert.der`
 
 ##### Encryption
 
 ###### Create RSA key
-`pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 --keypairgen --key-type rsa:2048 --label RSATestKey0020 --id "0020"`
+`pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 --keypairgen --key-type rsa:2048 --label RSATestKey0020 --id 5`
 
 ###### Create EC key
-`pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 --keypairgen --key-type EC:secp384r1 --label ECTestKey0014 --id 30303134`
+`pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 --keypairgen --key-type EC:secp384r1 --label ECTestKey0014 --id 6`
 
 ###### Encryption test
-`openssl pkeyutl -encrypt -engine pkcs11 -keyform engine -inkey "pkcs11:id=0007;type=public;" -in ./test.txt -out ./testsafe.enc`
+`openssl pkeyutl -encrypt -engine pkcs11 -keyform engine -inkey "pkcs11:id=%05;type=public;" -in ./test.txt -out ./testsafe.enc`
 
 ###### Decryption test
-`openssl pkeyutl -decrypt -engine pkcs11 -keyform engine -inkey "pkcs11:id=0007;type=private;" -in ./testsafe.enc -out ./testsafe.dec`
+`openssl pkeyutl -decrypt -engine pkcs11 -keyform engine -inkey "pkcs11:id=%05;type=private;" -in ./testsafe.enc -out ./testsafe.dec`
 
 
 ### Entrust nShield

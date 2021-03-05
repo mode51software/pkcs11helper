@@ -17,12 +17,20 @@ var pkcs11Client Pkcs11Client
 
 // test signing
 var caFiles = CASigningRequest{
-	csrFile: "../../data/localhost512.csr.der",
-	//	caPubkeyFile: "../../data/softhsm-inter-0002.ca.pub.pem",
-	caPubkeyFile: "../../data/safenet-inter-0016.ca.pub.pem",
-	//	caCertFile:   "../../data/softhsm-inter-0002.ca.cert.der",
-	caCertFile: "../../data/safenet-inter-0016.ca.cert.der",
+	csrFile:      "../../data/localhost512.csr.der",
+	caPubkeyFile: "../../data/softhsm-inter-0002.ca.pub.pem", // softhsm inter CA pubkey
+	//caPubkeyFile: "../../data/safenet-inter-04.ca.pub.pem",	// safenet inter CA pubkey
+	caCertFile: "../../data/softhsm-inter-0002.ca.cert.der", // softhsm inter CA cert
+	//caCertFile: "../../data/safenet-inter-04.ca.cert.der",	// safenet inter CA cert
 }
+
+// test signing key
+const keyLabelForSigning = "RSATestCAInterKey0002" // softhsm test CA
+//const keyLabelForSigning= "ECTestCAInterKey04"	// safenet test CA
+
+// test signing hash algo
+const keySigningAlgo = x509.SHA512WithRSA // softhsm RSA key
+//const keySigningAlgo = x509.ECDSAWithSHA512		// safenet EC key
 
 // test encryption
 var keyConfig = KeyConfig{Label: "RSATestKey0020", Type: pkcs11.CKK_RSA}
@@ -88,9 +96,9 @@ func TestCASigner(t *testing.T) {
 				var caSigner HsmSigner
 				caSigner.Serial = int64(rand.Uint64())
 				caSigner.PublicKey = caPubKey
-				caSigner.KeyConfig.Label = "RSATestCAInterKey0002"
+				caSigner.KeyConfig.Label = keyLabelForSigning
 				caSigner.Pkcs11Client = &pkcs11Client
-				caSigner.SignatureAlgo = x509.SHA512WithRSA //ECDSAWithSHA512
+				caSigner.SignatureAlgo = keySigningAlgo
 
 				if signedCsr, err := GenSignedCert(csr, caCert, &caSigner); err != nil {
 					t.Fatal(err)
