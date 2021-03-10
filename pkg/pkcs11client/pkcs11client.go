@@ -470,6 +470,28 @@ func (p *Pkcs11Client) GetECDSAPublicKey(object pkcs11.ObjectHandle) (*ecdsa.Pub
 	return pubKey, nil
 }
 
+// Check the public part of the key exists by label and/or ID
+func (p *Pkcs11Client) ExistsPublicKey(keyConfig *KeyConfig) (exists bool, err error) {
+	attribs := []*pkcs11.Attribute{
+		pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_PUBLIC_KEY),
+	}
+
+	var fullAttribs []*pkcs11.Attribute
+	if fullAttribs, err = (*keyConfig).appendKeyIdentity(attribs); err != nil {
+		return
+	}
+	var objHandles []pkcs11.ObjectHandle
+	if objHandles, err = p.FindObjects(fullAttribs, 1); err != nil {
+		return false, nil
+	}
+	if len(objHandles) > 0 {
+		exists = true
+	} else {
+		exists = false
+	}
+	return
+}
+
 func (p *Pkcs11Client) ReadExistsPublicKey(keyConfig *KeyConfig) (publicKey []byte, err error) {
 
 	attribs := []*pkcs11.Attribute{
@@ -496,66 +518,100 @@ func (p *Pkcs11Client) ReadExistsPublicKey(keyConfig *KeyConfig) (publicKey []by
 	}
 	return nil, errors.New("GetAttributeValue error")
 
-	//pKey := rsa.PublicKey{N: n, E: int(e)}
-
-	//return nil
 }
 
-// getPublicKeyID looks up the given public key in the PKCS#11 token, and
-// returns its ID as a []byte, for use in looking up the corresponding private
-// key.
-/*func (p *Pkcs11Client) GetPublicKey(label string, publicKey crypto.PublicKey) ([]byte, error) {
+// Fetch the key handles if exist
+func (p *Pkcs11Client) FetchKeyPairHandles(keyConfig *KeyConfig) (privKeyHandle *[]pkcs11.ObjectHandle, pubKeyHandle *[]pkcs11.ObjectHandle, err error) {
 
-	var template []*pkcs11.Attribute
-	switch key := publicKey.(type) {
-	case *rsa.PublicKey:
-		template = []*pkcs11.Attribute{
-			pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_PUBLIC_KEY),
-			pkcs11.NewAttribute(pkcs11.CKA_LABEL, []byte(label)),
-			pkcs11.NewAttribute(pkcs11.CKA_KEY_TYPE, pkcs11.CKK_RSA),
-			pkcs11.NewAttribute(pkcs11.CKA_MODULUS, key.N.Bytes()),
-			pkcs11.NewAttribute(pkcs11.CKA_PUBLIC_EXPONENT, big.NewInt(int64(key.E)).Bytes()),
-		}
-	case *ecdsa.PublicKey:
-		// http://docs.oasis-open.org/pkcs11/pkcs11-curr/v2.40/os/pkcs11-curr-v2.40-os.html#_ftn1
-		// PKCS#11 v2.20 specified that the CKA_EC_POINT was to be store in a DER-encoded
-		// OCTET STRING.
-		rawValue := asn1.RawValue{
-			Tag:   4, // in Go 1.6+ this is asn1.TagOctetString
-			Bytes: elliptic.Marshal(key.Curve, key.X, key.Y),
-		}
-		marshalledPoint, err := asn1.Marshal(rawValue)
-		if err != nil {
-			return nil, err
-		}
-		curveOID, err := asn1.Marshal(curveOIDs[key.Curve.Params().Name])
-		if err != nil {
-			return nil, err
-		}
-		template = []*pkcs11.Attribute{
-			pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_PUBLIC_KEY),
-			pkcs11.NewAttribute(pkcs11.CKA_LABEL, []byte(label)),
-			pkcs11.NewAttribute(pkcs11.CKA_KEY_TYPE, pkcs11.CKK_EC),
-			pkcs11.NewAttribute(pkcs11.CKA_EC_PARAMS, curveOID),
-			pkcs11.NewAttribute(pkcs11.CKA_EC_POINT, marshalledPoint),
-		}
-	default:
-		return nil, fmt.Errorf("unsupported public key of type %T", publicKey)
+	pubAttribs := []*pkcs11.Attribute{
+		pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_PUBLIC_KEY),
 	}
 
-	publicKeyHandle, err := s.FindObject(template)
+	var fullPubAttribs []*pkcs11.Attribute
+	if fullPubAttribs, err = (*keyConfig).appendKeyIdentity(pubAttribs); err != nil {
+		return
+	}
+
+	var pubObjHandles []pkcs11.ObjectHandle
+	if pubObjHandles, err = p.FindObjects(fullPubAttribs, 1); err != nil {
+		return
+	}
+	pubKeyHandle = &pubObjHandles
+
+	privAttribs := []*pkcs11.Attribute{
+		pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_PRIVATE_KEY),
+	}
+
+	var fullPrivAttribs []*pkcs11.Attribute
+	if fullPrivAttribs, err = (*keyConfig).appendKeyIdentity(privAttribs); err != nil {
+		return
+	}
+
+	var privObjHandles []pkcs11.ObjectHandle
+	if privObjHandles, err = p.FindObjects(fullPrivAttribs, 1); err != nil {
+		return
+	}
+	privKeyHandle = &privObjHandles
+	return
+}
+
+// first see if the key already exists, whether identified by ID or by LABEL
+func (p *Pkcs11Client) CheckExistsCreateKeyPair(keyConfig *KeyConfig) error {
+
+	if !keyConfig.checkNewKeyIntegrity() {
+		return errors.New(ERR_NEWKEYINTEGRITY)
+	}
+
+	if exists, err := p.ExistsPublicKey(keyConfig); err != nil || exists {
+		if exists {
+			return errors.New(ERR_NEWKEYALREADYEXISTS)
+		} else {
+			return err
+		}
+	}
+	return p.createKeyPair(keyConfig)
+}
+
+// No existence check here, which means a new key can be created with the same label but a different ID
+func (p *Pkcs11Client) CreateKeyPair(keyConfig *KeyConfig) error {
+
+	if !keyConfig.checkNewKeyIntegrity() {
+		return errors.New(ERR_NEWKEYALREADYEXISTS)
+	}
+	return p.createKeyPair(keyConfig)
+}
+
+// https://github.com/ThalesIgnite/crypto11/blob/cloudhsm/rsa.go#L83
+func (p *Pkcs11Client) createKeyPair(keyConfig *KeyConfig) error {
+
+	keyTemplates := GenKeyConfigKeyPairTemplate(keyConfig)
+	keyTemplates.GenDefaultKeyPairTemplateForSigning()
+	privAttribs, pubAttribs, err := keyTemplates.GenKeyPairTemplateAttribs()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	attrs, err := s.Module.GetAttributeValue(p.session, publicKeyHandle, []*pkcs11.Attribute{
-		pkcs11.NewAttribute(pkcs11.CKA_ID, nil),
-	})
+	mech, err := genKeyGenMechanismById(keyConfig.Type)
+
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if len(attrs) == 1 && attrs[0].Type == pkcs11.CKA_ID {
-		return attrs[0].Value, nil
+	if _, _, err = p.context.GenerateKeyPair(p.session, mech, pubAttribs, privAttribs); err != nil {
+		return err
 	}
-	return nil, fmt.Errorf("invalid result from GetAttributeValue")
-}*/
+	return nil
+}
+
+func (p *Pkcs11Client) DeleteKeyPair(keyConfig *KeyConfig) (err error) {
+
+	privKeyHandle, pubKeyHandle, err := p.FetchKeyPairHandles(keyConfig)
+
+	if pubKeyHandle != nil && len(*pubKeyHandle) > 0 {
+		err = p.context.DestroyObject(p.session, (*pubKeyHandle)[0])
+	}
+	if privKeyHandle != nil && len(*privKeyHandle) > 0 {
+		err = p.context.DestroyObject(p.session, (*privKeyHandle)[0])
+	}
+
+	return
+}

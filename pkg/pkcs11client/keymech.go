@@ -55,6 +55,18 @@ func GenSignerMechanismById(mechanismId uint, opts crypto.SignerOpts) ([]*pkcs11
 	return nil, nil
 }
 
+func genKeyGenMechanismById(id uint) ([]*pkcs11.Mechanism, error) {
+
+	switch id {
+	case pkcs11.CKK_RSA:
+		return []*pkcs11.Mechanism{pkcs11.NewMechanism(pkcs11.CKM_RSA_PKCS_KEY_PAIR_GEN, nil)}, nil
+	case pkcs11.CKK_EC:
+		return []*pkcs11.Mechanism{pkcs11.NewMechanism(pkcs11.CKM_EC_KEY_PAIR_GEN, nil)}, nil
+	default:
+		return nil, errors.New(ERR_NOMECHANISMCREATE)
+	}
+}
+
 // mechanisms vs functions: http://docs.oasis-open.org/pkcs11/pkcs11-curr/v2.40/os/pkcs11-curr-v2.40-os.html#_Toc416959967
 func genMechanismByIdWithOaepParams(mechanismId uint, hashAlg crypto.Hash) (mechanism []*pkcs11.Mechanism, err error) {
 	switch mechanismId {
