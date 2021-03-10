@@ -155,7 +155,7 @@ or
 
 ###### Gen Root CA Cert
 
-`openssl req -new -x509 -days 3560 -sha512 -extensions v3_ca  -engine pkcs11 -keyform engine -key 1601805484:0001 -out softhsm-root-0001.ca.cert.pem -set_serial 5000
+`openssl req -new -x509 -days 3560 -sha512 -extensions v3_ca  -engine pkcs11 -keyform engine -key 1601805484:0001 -out softhsm-root-0001.ca.cert.pem -set_serial 5000`
 
 ###### Gen Intermediate CA CSR
 
@@ -205,8 +205,15 @@ The signed Intermediate CA is now ready for use with [TESTING](TESTING.md)
 
 ##### SafeNet Configuration
 
-Using a SafeNet DPoD account, download the 
-source yoursafenetdpodpath/setenv needs to be run first.
+Using a SafeNet DPoD account, download the installation files.
+
+All of the following commands need a shell where the DPoD environment has been included using the source command:
+
+```
+cd /yoursafenetdpodpath
+. ./setenv
+```
+
 If you are using an IDE then source this script in a terminal and then start the IDE from the terminal.
 The unit tests should then work with debug enabled within the IDE.
 
@@ -234,64 +241,96 @@ MODULE_PATH = /yoursafenetpath/libs/64/libCryptoki2.so
 
 ##### Signing
 
+```
+...the value of the "id" attribute can contain non-textual data.  
+This is because the corresponding PKCS#11 "CKA_ID" object attribute can contain arbitrary binary data.
+```
+
 ###### Gen Root and Intermediate CA RSA Keys
 
-`pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 --keypairgen --key-type rsa:4096 --label RSATestCARootKey0001 --id "0001"`
+`pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 --keypairgen --key-type rsa:4096 --label RSATestCARootKey0001 --id 1`
 
-`pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 --keypairgen --key-type rsa:2048 --label RSATestCAInterKey0002 --id "0002"`
+`pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 --keypairgen --key-type rsa:2048 --label RSATestCAInterKey0002 --id 2`
+
+###### Extract the Root and Intermediate CAs' public keys
+
+`pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 --id 1 --type pubkey -r -o safenet-root-01.ca.pub.der`
+
+`pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 --id 2 --type pubkey -r -o safenet-inter-02.ca.pub.der`
+
+###### Convert the Root and Intermediate CAs' public keys to PEM format
+
+`openssl rsa -pubin -inform DER -in ./safenet-root-01.ca.pub.der -out ./safenet-root-01.ca.pub.pem`
+
+`openssl rsa -pubin -inform DER -in ./safenet-inter-02.ca.pub.der -out ./safenet-inter-02.ca.pub.pem`
 
 ###### Gen Root CA Cert
 
-`openssl req -new -x509 -days 7300 -sha512 -extensions v3_ca -engine pkcs11 -keyform engine -key "pkcs11:id=%00%01" -out safenet-root-0001.ca.cert.pem -set_serial 5000`
+`openssl req -new -x509 -days 7300 -sha512 -extensions v3_ca -engine pkcs11 -keyform engine -key "pkcs11:id=%01" -out safenet-root-01.ca.cert.pem -set_serial 5000`
 
 ###### Gen Intermediate CA CSR
 
-`openssl req -new -sha512 -engine pkcs11 -keyform engine -key "pkcs11:id=%00%02" -out safenet-inter-0002.ca.csr.pem`
+`openssl req -new -sha512 -engine pkcs11 -keyform engine -key "pkcs11:id=%02" -out safenet-inter-02.ca.csr.pem`
 
 ###### Sign Intermediate CA CSR
 
-`openssl ca -days 3650 -md sha512 -notext -extensions v3_intermediate_ca -engine pkcs11 -keyform engine -keyfile "pkcs11:id=%00%09" -in safenet-inter-0009.ca.csr.pem -out safenet-inter-0009.ca.cert.pem -cert safenet-root-0009.ca.cert.pem -noemailDN`
+`openssl ca -days 3650 -md sha512 -notext -extensions v3_intermediate_ca -engine pkcs11 -keyform engine -keyfile "pkcs11:id=%01" -in safenet-inter-02.ca.csr.pem -out safenet-inter-02.ca.cert.pem -cert safenet-root-01.ca.cert.pem -noemailDN`
 
-###### Extract the Intermediate CA's public key
+###### Convert to DER
 
-`pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 --id "0010" --type pubkey -r -o /tmp/safenet-inter.ca.pub.der`
+`openssl x509 -in ./safenet-inter-02.ca.cert.pem -outform DER -out safenet-inter-02.ca.cert.der`
 
 
 ###### Gen Root and Intermediate CA ECDSA Keys
 
-`pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 --keypairgen --key-type EC:secp521r1 --label ECTestCARootKey0015 --id "0015"`
+`pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 --keypairgen --key-type EC:secp521r1 --label ECTestCARootKey03 --id 3`
 
-`pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 --keypairgen --key-type EC:secp384r1 --label ECTestCAInterKey0016 --id "0016"`
+`pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 --keypairgen --key-type EC:secp384r1 --label ECTestCAInterKey04 --id 4`
+
+###### Extract the Root and Intermediate CAs' public keys
+
+`pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 --id 3 --type pubkey -r -o safenet-root-03.ca.pub.der`
+
+`pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 --id 4 --type pubkey -r -o safenet-inter-04.ca.pub.der`
+
+###### Convert the Root and Intermediate CAs' public keys to PEM format
+
+`openssl ec -pubin -inform DER -in ./safenet-root-03.ca.pub.der -out ./safenet-root-03.ca.pub.pem`
+
+`openssl ec -pubin -inform DER -in ./safenet-inter-04.ca.pub.der -out ./safenet-inter-04.ca.pub.pem`
 
 ###### Gen Root CA Cert
-`openssl req -new -x509 -days 7300 -sha512 -extensions v3_ca -engine pkcs11 -keyform engine -key "pkcs11:id=%00%15" -out safenet-root-0015.ca.cert.pem -set_serial 5010`
+
+`openssl req -new -x509 -days 7300 -sha512 -extensions v3_ca -engine pkcs11 -keyform engine -key "pkcs11:id=%03" -out safenet-root-03.ca.cert.pem -set_serial 5010`
 
 ###### Gen Intermediate CA CSR
-`openssl req -new -sha512 -engine pkcs11 -keyform engine -key "pkcs11:id=%00%16" -out safenet-inter-0016.ca.csr.pem`
+
+`openssl req -new -sha512 -engine pkcs11 -keyform engine -key "pkcs11:id=%04" -out safenet-inter-04.ca.csr.pem`
 
 ###### Sign Intermediate CA CSR
-`openssl ca -days 3650 -md sha512 -notext -extensions v3_intermediate_ca -engine pkcs11 -keyform engine -keyfile "pkcs11:id=%00%15" -in safenet-inter-0016.ca.csr.pem -out safenet-inter-0016.ca.cert.pem -cert safenet-root-0015.ca.cert.pem -noemailDN`
 
-###### Extract the Intermediate CA's public key
-`pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 --id "0016" --type pubkey -r -o safenet-inter-0016.ca.pub.der`
+`openssl ca -days 3650 -md sha512 -notext -extensions v3_intermediate_ca -engine pkcs11 -keyform engine -keyfile "pkcs11:id=%03" -in safenet-inter-04.ca.csr.pem -out safenet-inter-04.ca.cert.pem -cert safenet-root-03.ca.cert.pem -noemailDN`
 
+###### Convert to DER
+
+`openssl x509 -in ./safenet-inter-04.ca.cert.pem -outform DER -out safenet-inter-04.ca.cert.der`
 
 ##### Encryption
 
 ###### Create RSA key
-`pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 --keypairgen --key-type rsa:2048 --label RSATestKey0020 --id "0020"`
+`pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 --keypairgen --key-type rsa:2048 --label RSATestKey0020 --id 5`
 
 ###### Create EC key
-`pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 --keypairgen --key-type EC:secp384r1 --label ECTestKey0014 --id 30303134`
+`pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 --keypairgen --key-type EC:secp384r1 --label ECTestKey0014 --id 6`
 
 ###### Encryption test
-`openssl pkeyutl -encrypt -engine pkcs11 -keyform engine -inkey "pkcs11:id=0007;type=public;" -in ./test.txt -out ./testsafe.enc`
+`openssl pkeyutl -encrypt -engine pkcs11 -keyform engine -inkey "pkcs11:id=%05;type=public;" -in ./test.txt -out ./testsafe.enc`
 
 ###### Decryption test
-`openssl pkeyutl -decrypt -engine pkcs11 -keyform engine -inkey "pkcs11:id=0007;type=private;" -in ./testsafe.enc -out ./testsafe.dec`
+`openssl pkeyutl -decrypt -engine pkcs11 -keyform engine -inkey "pkcs11:id=%05;type=private;" -in ./testsafe.enc -out ./testsafe.dec`
 
 
-## Entrust nShield
+### Entrust nShield
 
 ```
 openssl_conf = openssl_init
@@ -308,22 +347,22 @@ dynamic_path = /usr/lib/x86_64-linux-gnu/engines-1.1/libpkcs11.so
 MODULE_PATH = /opt/apps/nfast/20201219/bin/libcknfast.so
 ```
 
-### Commands
+#### Commands
 
-#### nCipher Encryption Test
+##### nCipher Encryption Test
 `openssl pkeyutl -encrypt -engine pkcs11 -keyform engine -inkey "pkcs11:id=%61%02%1f%1f%ed%1e%fc%39%f9%d6%0f%28%9b%d5%5f%e9%78%91%6c%e9;type=public;" -in ./test.txt -out ./testncipher.enc`
 
-#### nCipher Decryption Test
+##### nCipher Decryption Test
 `openssl pkeyutl -decrypt -engine pkcs11 -keyform engine -inkey "pkcs11:id=%61%02%1f%1f%ed%1e%fc%39%f9%d6%0f%28%9b%d5%5f%e9%78%91%6c%e9;type=public;" -in ./testncipher.enc -out ./testncipher.dec`
 
-#### OpenSSL Gen Root CA Cert
+##### OpenSSL Gen Root CA Cert
 `openssl req -new -x509 -days 7300 -sha512 -extensions v3_ca -engine pkcs11 -keyform engine -key "pkcs11:id=%61%02%1f%1f%ed%1e%fc%39%f9%d6%0f%28%9b%d5%5f%e9%78%91%6c%e9;type=public;" -out ncipher-root-0005.ca.cert.pem -set_serial 5001`
 
-#### OpenSSL Gen Intermediate CA CSR
+##### OpenSSL Gen Intermediate CA CSR
 `openssl req -new -sha512 -engine pkcs11 -keyform engine -key "pkcs11:id=%88%d8%42%c8%6f%7a%49%ae%92%be%d6%0f%3b%e7%41%51%94%27%69%86" -out ncipher-inter-0006.ca.csr.pem`
 
-#### OpenSSL Sign Intermediate CA CSR
+##### OpenSSL Sign Intermediate CA CSR
 `openssl ca -days 3650 -md sha512 -notext -extensions v3_intermediate_ca -engine pkcs11 -keyform engine -keyfile "pkcs11:id=%61%02%1f%1f%ed%1e%fc%39%f9%d6%0f%28%9b%d5%5f%e9%78%91%6c%e9" -in ncipher-inter-0006.ca.csr.pem -out ncipher-inter-0006.ca.cert.pem -cert ncipher-root-0005.ca.cert.pem -noemailDN`
 
-#### Extract the Intermediate CA's public key
+##### Extract the Intermediate CA's public key
 `pkcs11-tool --module=/opt/apps/nfast/20201219/bin/libcknfast.so --id "61021f1fed1efc39f9d60f289bd55fe978916ce9" --type pubkey -r -o /tmp/ncipher-inter.ca.pub.der`
