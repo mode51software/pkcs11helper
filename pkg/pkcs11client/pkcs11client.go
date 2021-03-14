@@ -557,6 +557,14 @@ func (p *Pkcs11Client) FetchKeyPairHandles(keyConfig *KeyConfig) (privKeyHandle 
 
 // first see if the key already exists, whether identified by ID or by LABEL
 func (p *Pkcs11Client) CheckExistsCreateKeyPair(keyConfig *KeyConfig) error {
+	return p.checkExistsCreateKeyPair(keyConfig, false)
+}
+
+func (p *Pkcs11Client) CheckExistsOkCreateKeyPair(keyConfig *KeyConfig) error {
+	return p.checkExistsCreateKeyPair(keyConfig, true)
+}
+
+func (p *Pkcs11Client) checkExistsCreateKeyPair(keyConfig *KeyConfig, okExists bool) error {
 
 	if !keyConfig.checkNewKeyIntegrity() {
 		return errors.New(ERR_NEWKEYINTEGRITY)
@@ -564,7 +572,11 @@ func (p *Pkcs11Client) CheckExistsCreateKeyPair(keyConfig *KeyConfig) error {
 
 	if exists, err := p.ExistsPublicKey(keyConfig); err != nil || exists {
 		if exists {
-			return errors.New(ERR_NEWKEYALREADYEXISTS)
+			if okExists {
+				return nil
+			} else {
+				return errors.New(ERR_NEWKEYALREADYEXISTS)
+			}
 		} else {
 			return err
 		}
@@ -613,5 +625,21 @@ func (p *Pkcs11Client) DeleteKeyPair(keyConfig *KeyConfig) (err error) {
 		err = p.context.DestroyObject(p.session, (*privKeyHandle)[0])
 	}
 
+	return
+}
+
+// get the public key from the HSM and generate the subjectKeyID from it for CA cert gen
+func (p *Pkcs11Client) GetGenSubjectKeyId(keyConfig *KeyConfig, keyType uint) (subjectKeyId []byte, publicKey crypto.PublicKey, err error) {
+
+	switch keyType {
+	case pkcs11.CKK_ECDSA:
+		publicKey, err = p.ReadECPublicKey(keyConfig)
+	case pkcs11.CKK_RSA:
+		publicKey, err = p.ReadRSAPublicKey(keyConfig)
+	default:
+		return nil, nil, errors.New("Only EC or RSA keys are supported")
+	}
+
+	subjectKeyId, err = GenSubjectKeyID(publicKey)
 	return
 }

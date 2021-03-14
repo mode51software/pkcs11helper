@@ -209,7 +209,7 @@ func TestCreateECKeyPair(t *testing.T) {
 	registerTest(t)
 
 	if err := pkcs11Client.CheckExistsCreateKeyPair(
-		&KeyConfig{Label: "testkey42", Id: []byte{42}, Type: pkcs11.CKK_EC, KeyBits: 521}); err != nil {
+		&KeyConfig{Label: "testkey43", Id: []byte{43}, Type: pkcs11.CKK_EC, KeyBits: 521}); err != nil {
 		t.Error(err)
 	}
 }
@@ -218,7 +218,7 @@ func TestDeleteKeyPair(t *testing.T) {
 	registerTest(t)
 
 	if err := pkcs11Client.DeleteKeyPair(
-		&KeyConfig{Label: "testkey42", Type: pkcs11.CKK_EC}); err != nil {
+		&KeyConfig{Label: "testinterkeytest58", Type: pkcs11.CKK_EC}); err != nil {
 		t.Error(err)
 	}
 }
