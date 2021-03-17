@@ -2,7 +2,9 @@ package pkcs11client
 
 import (
 	"crypto"
+	"crypto/ecdsa"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/x509"
 	"encoding/asn1"
@@ -11,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"io/ioutil"
 	"math/big"
+	"reflect"
 	"time"
 )
 
@@ -178,4 +181,16 @@ func GenSubjectKeyID(publicKey crypto.PublicKey) ([]byte, error) {
 	subjKeyID := sha1.Sum(marshaledKey)
 
 	return subjKeyID[:], nil
+}
+
+func GetPubKeyType(publicKey crypto.PublicKey) (keyType x509.PublicKeyAlgorithm, err error) {
+	if reflect.TypeOf(publicKey) == reflect.TypeOf(&rsa.PublicKey{}) {
+		keyType = x509.RSA
+	} else if reflect.TypeOf(publicKey) == reflect.TypeOf(&ecdsa.PublicKey{}) {
+		keyType = x509.ECDSA
+	} else {
+		keyType = x509.UnknownPublicKeyAlgorithm
+		err = errors.New("Unsupported PublicKeyAlgorithm")
+	}
+	return
 }

@@ -8,11 +8,13 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/rsa"
 	"encoding/asn1"
 	"errors"
 	"fmt"
 	"github.com/miekg/pkcs11"
 	"github.com/rs/zerolog/log"
+	"math/big"
 	"sync"
 	"time"
 )
@@ -411,11 +413,43 @@ func (p *Pkcs11Client) ReadPublicKey(keyConfig *KeyConfig, pubKeyType uint) (pub
 		return
 	}
 	switch pubKeyType {
-	//case pkcs11.CKK_RSA:
+	case pkcs11.CKK_RSA:
+		return p.GetRSAPublicKey(objHandles[0])
 	case pkcs11.CKK_ECDSA:
 		return p.GetECDSAPublicKey(objHandles[0])
 	}
 	return nil, nil
+}
+
+// https://github.com/letsencrypt/boulder/blob/release-2021-02-08/pkcs11helpers/helpers.go#L178
+func (p *Pkcs11Client) GetRSAPublicKey(object pkcs11.ObjectHandle) (*rsa.PublicKey, error) {
+	// Retrieve the public exponent and modulus for the public key
+	attrs, err := p.context.GetAttributeValue(p.session, object, []*pkcs11.Attribute{
+		pkcs11.NewAttribute(pkcs11.CKA_PUBLIC_EXPONENT, nil),
+		pkcs11.NewAttribute(pkcs11.CKA_MODULUS, nil),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Failed to retrieve key attributes: %s", err)
+	}
+
+	// Attempt to build the public key from the retrieved attributes
+	pubKey := &rsa.PublicKey{}
+	gotMod, gotExp := false, false
+	for _, a := range attrs {
+		switch a.Type {
+		case pkcs11.CKA_PUBLIC_EXPONENT:
+			pubKey.E = int(big.NewInt(0).SetBytes(a.Value).Int64())
+			gotExp = true
+		case pkcs11.CKA_MODULUS:
+			pubKey.N = big.NewInt(0).SetBytes(a.Value)
+			gotMod = true
+		}
+	}
+	// Fail if we are missing either the public exponent or modulus
+	if !gotExp || !gotMod {
+		return nil, errors.New("Couldn't retrieve modulus and exponent")
+	}
+	return pubKey, nil
 }
 
 // https://github.com/letsencrypt/boulder/blob/release-2021-02-08/pkcs11helpers/helpers.go#L208
@@ -425,6 +459,7 @@ func (p *Pkcs11Client) GetECDSAPublicKey(object pkcs11.ObjectHandle) (*ecdsa.Pub
 		pkcs11.NewAttribute(pkcs11.CKA_EC_PARAMS, nil),
 		pkcs11.NewAttribute(pkcs11.CKA_EC_POINT, nil),
 	})
+
 	if err != nil {
 		return nil, fmt.Errorf("Failed to retrieve key attributes: %s", err)
 	}
@@ -640,6 +675,9 @@ func (p *Pkcs11Client) GetGenSubjectKeyId(keyConfig *KeyConfig, keyType uint) (s
 		return nil, nil, errors.New("Only EC or RSA keys are supported")
 	}
 
+	if err != nil {
+		return
+	}
 	subjectKeyId, err = GenSubjectKeyID(publicKey)
 	return
 }

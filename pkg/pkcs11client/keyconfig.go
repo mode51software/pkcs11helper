@@ -87,7 +87,7 @@ type KeyTemplateSecurity struct {
 
 // an ID and label are needed when creating a key, though when using a key either may be used
 func (k *KeyConfig) checkNewKeyIntegrity() bool {
-	return k.KeyBits > 0 && len(k.Id) > 0 && len(k.Label) > 0
+	return k.KeyBits > 0 && (len(k.Id) > 0 || len(k.Label) > 0)
 }
 
 func (k *KeyConfig) appendKeyIdentity(attribs []*pkcs11.Attribute) (fullAttribs []*pkcs11.Attribute, err error) {
