@@ -1,3 +1,8 @@
+## v0.3.3
+### 17/Mar/2021
+
+* Add Read RSA for GenSubjectKeyId
+
 ## v0.3.2
 ### 14/Mar/2021
 
