@@ -1,7 +1,11 @@
 package pkcs11client
 
 import (
+	"crypto"
+	"crypto/ecdsa"
 	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha1"
 	"crypto/x509"
 	"encoding/asn1"
 	"encoding/pem"
@@ -9,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"io/ioutil"
 	"math/big"
+	"reflect"
 	"time"
 )
 
@@ -36,6 +41,34 @@ func LoadCertFromFile(filename string) (*x509.Certificate, error) {
 	}
 
 	return x509.ParseCertificate(fileData)
+}
+
+func LoadPEMCertFromFile(filename string) (*x509.Certificate, error) {
+
+	fileData, err := ioutil.ReadFile(filename)
+
+	if err != nil {
+		return nil, err
+	}
+
+	block, _ := pem.Decode(fileData)
+
+	if block == nil {
+		return nil, errors.New("failed to parse certificate PEM")
+	}
+
+	return x509.ParseCertificate(block.Bytes)
+	//return x509.ParseCertificate(fileData)
+}
+
+func LoadFromFileAsString(filename string) (*string, error) {
+
+	fileData, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	strData := string(fileData)
+	return &strData, err
 }
 
 func SaveCertToFile(filename string, cert *x509.Certificate) error {
@@ -70,7 +103,7 @@ func LoadPubkeyFromFile(filename string) (interface{}, error) {
 
 func SaveDataToFile(filename string, fileData *[]byte) (err error) {
 
-	err = ioutil.WriteFile(filename, *fileData, 0x644)
+	err = ioutil.WriteFile(filename, *fileData, 0644)
 
 	if err != nil {
 		return err
@@ -135,4 +168,29 @@ func ecdsaPKCS11ToRFC5480(pkcs11Signature []byte) (rfc5480Signature []byte, err 
 		R: r.SetBytes(pkcs11Signature[:mid]),
 		S: s.SetBytes(pkcs11Signature[mid:]),
 	})
+}
+
+// used in the CA cert
+func GenSubjectKeyID(publicKey crypto.PublicKey) ([]byte, error) {
+
+	marshaledKey, err := x509.MarshalPKIXPublicKey(publicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	subjKeyID := sha1.Sum(marshaledKey)
+
+	return subjKeyID[:], nil
+}
+
+func GetPubKeyType(publicKey crypto.PublicKey) (keyType x509.PublicKeyAlgorithm, err error) {
+	if reflect.TypeOf(publicKey) == reflect.TypeOf(&rsa.PublicKey{}) {
+		keyType = x509.RSA
+	} else if reflect.TypeOf(publicKey) == reflect.TypeOf(&ecdsa.PublicKey{}) {
+		keyType = x509.ECDSA
+	} else {
+		keyType = x509.UnknownPublicKeyAlgorithm
+		err = errors.New("Unsupported PublicKeyAlgorithm")
+	}
+	return
 }
