@@ -237,6 +237,7 @@ MODULE_PATH = /yoursafenetpath/libs/64/libCryptoki2.so
 #### Commands
 
 ##### List Keys
+
 `pkcs11-tool --module=/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so --login --login-type user --slot 3 -O`
 
 ##### Signing
@@ -332,6 +333,10 @@ This is because the corresponding PKCS#11 "CKA_ID" object attribute can contain 
 
 ### Entrust nShield
 
+#### Configuration 
+
+##### OpenSSL Engine Configuration
+
 ```
 openssl_conf = openssl_init
 
@@ -344,25 +349,50 @@ pkcs11 = pkcs11_section
 [pkcs11_section]
 engine_id = pkcs11
 dynamic_path = /usr/lib/x86_64-linux-gnu/engines-1.1/libpkcs11.so
-MODULE_PATH = /opt/apps/nfast/20201219/bin/libcknfast.so
+MODULE_PATH = /opt/apps/nfast/current/bin/libcknfast.so
 ```
 
 #### Commands
 
-##### nCipher Encryption Test
-`openssl pkeyutl -encrypt -engine pkcs11 -keyform engine -inkey "pkcs11:id=%61%02%1f%1f%ed%1e%fc%39%f9%d6%0f%28%9b%d5%5f%e9%78%91%6c%e9;type=public;" -in ./test.txt -out ./testncipher.enc`
+##### List Keys
 
-##### nCipher Decryption Test
-`openssl pkeyutl -decrypt -engine pkcs11 -keyform engine -inkey "pkcs11:id=%61%02%1f%1f%ed%1e%fc%39%f9%d6%0f%28%9b%d5%5f%e9%78%91%6c%e9;type=public;" -in ./testncipher.enc -out ./testncipher.dec`
+`cklist`
 
-##### OpenSSL Gen Root CA Cert
-`openssl req -new -x509 -days 7300 -sha512 -extensions v3_ca -engine pkcs11 -keyform engine -key "pkcs11:id=%61%02%1f%1f%ed%1e%fc%39%f9%d6%0f%28%9b%d5%5f%e9%78%91%6c%e9;type=public;" -out ncipher-root-0005.ca.cert.pem -set_serial 5001`
+##### Create Key
 
-##### OpenSSL Gen Intermediate CA CSR
-`openssl req -new -sha512 -engine pkcs11 -keyform engine -key "pkcs11:id=%88%d8%42%c8%6f%7a%49%ae%92%be%d6%0f%3b%e7%41%51%94%27%69%86" -out ncipher-inter-0006.ca.csr.pem`
+`generatekey -m 1 pkcs11 plainname=RSATestKey01 nvram=no protect=module type=RSA size=4096 pubexp=`
 
-##### OpenSSL Sign Intermediate CA CSR
-`openssl ca -days 3650 -md sha512 -notext -extensions v3_intermediate_ca -engine pkcs11 -keyform engine -keyfile "pkcs11:id=%61%02%1f%1f%ed%1e%fc%39%f9%d6%0f%28%9b%d5%5f%e9%78%91%6c%e9" -in ncipher-inter-0006.ca.csr.pem -out ncipher-inter-0006.ca.cert.pem -cert ncipher-root-0005.ca.cert.pem -noemailDN`
+##### Signing
 
-##### Extract the Intermediate CA's public key
-`pkcs11-tool --module=/opt/apps/nfast/20201219/bin/libcknfast.so --id "61021f1fed1efc39f9d60f289bd55fe978916ce9" --type pubkey -r -o /tmp/ncipher-inter.ca.pub.der`
+###### Gen Root and Intermediate CA RSA Keys
+
+`generatekey -m 1 pkcs11 plainname=RSARootKey01 nvram=no protect=module type=RSA size=4096 pubexp=`
+
+`generatekey -m 1 pkcs11 plainname=RSAInterKey02 nvram=no protect=module type=RSA size=2048 pubexp=`
+
+###### Gen Root CA Cert
+
+`openssl req -new -x509 -days 7300 -sha512 -extensions v3_ca -engine pkcs11 -keyform engine -key "pkcs11:object=RSARootKey01" -out ncipher-root-01.ca.cert.pem -set_serial 5004`
+
+###### Gen Intermediate CA CSR
+
+`openssl req -new -sha512 -engine pkcs11 -keyform engine -key "pkcs11:object=RSAInterKey02" -out ncipher-inter-02.ca.csr.pem`
+
+###### Sign Intermediate CA CSR
+
+`openssl ca -days 3650 -md sha512 -notext -extensions v3_intermediate_ca -engine pkcs11 -keyform engine -keyfile "pkcs11:object=RSARootKey01" -in ncipher-inter-02.ca.csr.pem -out ncipher-inter-02.ca.cert.pem -cert ncipher-root-01.ca.cert.pem -noemailDN`
+
+###### Extract the Intermediate CA's public key
+
+`pkcs11-tool --module=/opt/apps/nfast/20201219/bin/libcknfast.so --label "RSAInterKey02" --type pubkey -r -o ncipher-inter.ca.pub.der`
+
+##### Encryption
+
+###### Encryption Test
+
+`openssl pkeyutl -encrypt -engine pkcs11 -keyform engine -inkey "pkcs11:object=RSATestKey01;type=public;" -in ./test.txt -out ./testncipher.enc`
+
+###### Decryption Test
+
+`openssl pkeyutl -decrypt -engine pkcs11 -keyform engine -inkey "pkcs11:object=RSATestKey01;type=private;" -in ./testncipher.enc -out ./testncipher.dec`
+

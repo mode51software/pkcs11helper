@@ -389,7 +389,6 @@ func (p *Pkcs11Client) FindObjects(attribs []*pkcs11.Attribute, max int) (objHan
 }
 
 // https://stackoverflow.com/a/25181584/2002211
-
 func (p *Pkcs11Client) ReadRSAPublicKey(keyConfig *KeyConfig) (pubKey interface{}, err error) {
 	return p.ReadPublicKey(keyConfig, pkcs11.CKK_RSA)
 }
