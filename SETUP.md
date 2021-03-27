@@ -354,33 +354,53 @@ MODULE_PATH = /opt/apps/nfast/current/bin/libcknfast.so
 
 #### Commands
 
+##### Create Slot
+
+```
+ppmk --new M51SOFTCARD
+```
+
+```
+pkcs11-tool -L --module /opt/nfast/toolkits/pkcs11/libcknfast.so
+```
+
+This should reveal the slot ID, in this case *0x2d622496*:
+
+```
+Slot 1 (0x2d622496): M51SOFTCARD
+```
+
 ##### List Keys
 
 `cklist`
 
+```
+pkcs11-tool -O --login --slot 0x2d622496 --module /opt/nfast/toolkits/pkcs11/libcknfast.so
+```
+
 ##### Create Key
 
-`generatekey -m 1 pkcs11 plainname=RSATestKey01 nvram=no protect=module type=RSA size=4096 pubexp=`
+`generatekey -m 1 pkcs11 plainname=RSATestKey01 nvram=no protect=softcard type=RSA size=4096 pubexp=`
 
 ##### Signing
 
 ###### Gen Root and Intermediate CA RSA Keys
 
-`generatekey -m 1 pkcs11 plainname=RSARootKey01 nvram=no protect=module type=RSA size=4096 pubexp=`
+`generatekey -m 1 pkcs11 plainname=RSARootKey01 nvram=no protect=softcard type=RSA size=4096 pubexp=`
 
-`generatekey -m 1 pkcs11 plainname=RSAInterKey02 nvram=no protect=module type=RSA size=2048 pubexp=`
+`generatekey -m 1 pkcs11 plainname=RSAInterKey02 nvram=no protect=softcard type=RSA size=2048 pubexp=`
 
 ###### Gen Root CA Cert
 
-`openssl req -new -x509 -days 7300 -sha512 -extensions v3_ca -engine pkcs11 -keyform engine -key "pkcs11:object=RSARootKey01" -out ncipher-root-01.ca.cert.pem -set_serial 5004`
+`openssl req -new -x509 -days 7300 -sha512 -extensions v3_ca -engine pkcs11 -keyform engine -key "pkcs11:object=RSARootKey01;token=M51SOFTCARD" -out ncipher-root-01.ca.cert.pem -set_serial 5004`
 
 ###### Gen Intermediate CA CSR
 
-`openssl req -new -sha512 -engine pkcs11 -keyform engine -key "pkcs11:object=RSAInterKey02" -out ncipher-inter-02.ca.csr.pem`
+`openssl req -new -sha512 -engine pkcs11 -keyform engine -key "pkcs11:object=RSAInterKey02;token=M51SOFTCARD" -out ncipher-inter-02.ca.csr.pem`
 
 ###### Sign Intermediate CA CSR
 
-`openssl ca -days 3650 -md sha512 -notext -extensions v3_intermediate_ca -engine pkcs11 -keyform engine -keyfile "pkcs11:object=RSARootKey01" -in ncipher-inter-02.ca.csr.pem -out ncipher-inter-02.ca.cert.pem -cert ncipher-root-01.ca.cert.pem -noemailDN`
+`openssl ca -days 3650 -md sha512 -notext -extensions v3_intermediate_ca -engine pkcs11 -keyform engine -keyfile "pkcs11:object=RSARootKey01;token=M51SOFTCARD" -in ncipher-inter-02.ca.csr.pem -out ncipher-inter-02.ca.cert.pem -cert ncipher-root-01.ca.cert.pem -noemailDN`
 
 ###### Extract the Intermediate CA's public key
 
@@ -390,9 +410,9 @@ MODULE_PATH = /opt/apps/nfast/current/bin/libcknfast.so
 
 ###### Encryption Test
 
-`openssl pkeyutl -encrypt -engine pkcs11 -keyform engine -inkey "pkcs11:object=RSATestKey01;type=public;" -in ./test.txt -out ./testncipher.enc`
+`openssl pkeyutl -encrypt -engine pkcs11 -keyform engine -inkey "pkcs11:object=RSATestKey01;type=public;token=M51SOFTCARD" -in ./test.txt -out ./testncipher.enc`
 
 ###### Decryption Test
 
-`openssl pkeyutl -decrypt -engine pkcs11 -keyform engine -inkey "pkcs11:object=RSATestKey01;type=private;" -in ./testncipher.enc -out ./testncipher.dec`
+`openssl pkeyutl -decrypt -engine pkcs11 -keyform engine -inkey "pkcs11:object=RSATestKey01;type=private;token=M51SOFTCARD" -in ./testncipher.enc -out ./testncipher.dec`
 
