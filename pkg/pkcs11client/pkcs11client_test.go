@@ -18,37 +18,25 @@ var pkcs11Client Pkcs11Client
 // test signing
 var caFiles = CASigningRequest{
 	csrFile:      "../../data/localhost512.csr.der",
-	caPubkeyFile: "../../data/softhsm-inter-0002.ca.pub.pem", // softhsm inter CA pubkey
-	//caPubkeyFile: "../../data/safenet-inter-04.ca.pub.pem",	// safenet inter CA pubkey
-	caCertFile: "../../data/softhsm-inter-0002.ca.cert.der", // softhsm inter CA cert
-	//caCertFile: "../../data/safenet-inter-04.ca.cert.der",	// safenet inter CA cert
+	caPubkeyFile: "../../data/softhsm-inter-0002.ca.pub.pem",  // softhsm inter CA pubkey
+	caCertFile:   "../../data/softhsm-inter-0002.ca.cert.der", // softhsm inter CA cert
 }
 
 // test signing key
 const keyLabelForSigning = "RSATestCAInterKey0002" // softhsm test CA
-//const keyLabelForSigning= "ECTestCAInterKey04"	// safenet test CA
 
 // test signing hash algo
 const keySigningAlgo = x509.SHA512WithRSA // softhsm RSA key
-//const keySigningAlgo = x509.ECDSAWithSHA512		// safenet EC key
 
 // test encryption
 var keyConfig = KeyConfig{Label: "RSATestKey0020", Type: pkcs11.CKK_RSA}
 
 func init() {
 
-	/*	pkcs11Client.HsmConfig = &HsmConfig{
+	pkcs11Client.HsmConfig = &HsmConfig{
 		Lib:             "/opt/server/softhsm/current/lib/softhsm/libsofthsm2.so",
 		SlotId:          288648064,
 		Pin:             "1234",
-		ConnectTimeoutS: 10,
-		ReadTimeoutS:    30,
-	}*/
-
-	pkcs11Client.HsmConfig = &HsmConfig{
-		Lib:             "/opt/apps/safenet/dpod/current/libs/64/libCryptoki2.so",
-		SlotId:          3,
-		Pin:             "9e9515e556bd995e",
 		ConnectTimeoutS: 10,
 		ReadTimeoutS:    30,
 	}
@@ -218,7 +206,21 @@ func TestDeleteKeyPair(t *testing.T) {
 	registerTest(t)
 
 	if err := pkcs11Client.DeleteKeyPair(
-		&KeyConfig{Label: "testinterkeytest58", Type: pkcs11.CKK_EC}); err != nil {
+		&KeyConfig{Label: "testkey43", Type: pkcs11.CKK_EC}); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateECKeyPairSecP256k1(t *testing.T) {
+	registerTest(t)
+
+	if err := pkcs11Client.CheckExistsCreateKeyPair(
+		&KeyConfig{
+			Label:     "testkey44",
+			Id:        []byte{44},
+			Type:      pkcs11.CKK_EC,
+			KeyBits:   256,
+			CurveType: EC_SECPK}); err != nil {
 		t.Error(err)
 	}
 }

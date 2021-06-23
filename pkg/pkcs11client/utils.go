@@ -10,6 +10,7 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"github.com/rs/zerolog/log"
 	"io/ioutil"
 	"math/big"
@@ -192,5 +193,13 @@ func GetPubKeyType(publicKey crypto.PublicKey) (keyType x509.PublicKeyAlgorithm,
 		keyType = x509.UnknownPublicKeyAlgorithm
 		err = errors.New("Unsupported PublicKeyAlgorithm")
 	}
+	return
+}
+
+func GenDateTimeKeyLabel() (keyLabel string) {
+	t := time.Now()
+	keyLabel = fmt.Sprintf("%d%02d%02d%02d%02d%02d",
+		t.Year(), t.Month(), t.Day(),
+		t.Hour(), t.Minute(), t.Second())
 	return
 }

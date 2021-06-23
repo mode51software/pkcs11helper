@@ -22,7 +22,18 @@ type KeyConfig struct {
 
 	// The mechanism will be auto populated but it can be manually set
 	Mechanism []*pkcs11.Mechanism
+
+	CurveType int
 }
+
+const (
+	EC_UNSPECIFIED = 0
+	EC_SECPRIME    = 1
+	EC_BRAINPOOL   = 2
+	EC_BRAINTWIST  = 3
+	EC_SECPK       = 4
+	EC_EDWARDS     = 5
+)
 
 type KeyConfigKeyPairTemplate struct {
 	keyConfig             KeyConfig
@@ -121,20 +132,29 @@ func (kp *KeyConfigKeyPairTemplate) appendKeyPairGenParams(attribs []*pkcs11.Att
 		found = true
 	} else if kp.keyConfig.Type == pkcs11.CKK_EC || kp.keyConfig.Type == pkcs11.CKK_ECDSA {
 
-		var curve elliptic.Curve
-		switch kp.keyConfig.KeyBits {
-		case 224:
-			curve = elliptic.P224()
-		case 256:
-			curve = elliptic.P256()
-		case 384:
-			curve = elliptic.P384()
-		case 521:
-			curve = elliptic.P521()
-		default:
-			return nil, errors.New(ERR_UNSUPPORTEDCURVESIZE)
+		var curveName string
+
+		var curve elliptic.Curve // secp224r1 .. secp521r, secp256k1
+
+		if kp.keyConfig.CurveType == EC_UNSPECIFIED || kp.keyConfig.CurveType == EC_SECPRIME {
+			switch kp.keyConfig.KeyBits {
+			case 224:
+				curve = elliptic.P224()
+			case 256:
+				curve = elliptic.P256()
+			case 384:
+				curve = elliptic.P384()
+			case 521:
+				curve = elliptic.P521()
+			default:
+				return nil, errors.New(ERR_UNSUPPORTEDCURVESIZE)
+			}
+			curveName = curve.Params().Name
+		} else if kp.keyConfig.CurveType == EC_SECPK {
+			curveName = CURVE_P256K1
 		}
-		if curveOID, err := asn1.Marshal(curveOIDs[curve.Params().Name]); err != nil {
+
+		if curveOID, err := asn1.Marshal(curveOIDs[curveName]); err != nil {
 			return nil, errors.New(ERR_UNSUPPORTEDCURVESIZE)
 		} else {
 			extraAttribs = append(extraAttribs, pkcs11.NewAttribute(pkcs11.CKA_EC_PARAMS, curveOID))
