@@ -17,14 +17,21 @@ const (
 	ERR_NOMECHANISMCREATE    = "Unable to find a key mechanism for key creation"
 	ERR_UNSUPPORTEDKEYTYPE   = "Unsupported key type. Please use CKK_RSA or CKK_EC"
 	ERR_UNSUPPORTEDCURVESIZE = "No curve for key bit size"
+
+	CURVE_P224   = "P-224"
+	CURVE_P256   = "P-256"
+	CURVE_P384   = "P-384"
+	CURVE_P521   = "P-521"
+	CURVE_P256K1 = "P-256k1"
 )
 
 // https://tools.ietf.org/html/rfc5480 Appendix A p.19
 var curveOIDs = map[string]asn1.ObjectIdentifier{
-	"P-224": {1, 3, 132, 0, 33},
-	"P-256": {1, 2, 840, 10045, 3, 1, 7},
-	"P-384": {1, 3, 132, 0, 34},
-	"P-521": {1, 3, 132, 0, 35},
+	CURVE_P224:   {1, 3, 132, 0, 33},
+	CURVE_P256:   {1, 2, 840, 10045, 3, 1, 7},
+	CURVE_P384:   {1, 3, 132, 0, 34},
+	CURVE_P521:   {1, 3, 132, 0, 35},
+	CURVE_P256K1: {1, 3, 132, 0, 10},
 }
 
 // https://github.com/letsencrypt/boulder/blob/release-2021-02-08/pkcs11helpers/helpers.go#L208
