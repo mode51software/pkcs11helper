@@ -7,6 +7,21 @@ import (
 	"github.com/miekg/pkcs11"
 )
 
+const (
+	// KeyConfig.CurveType
+	EC_UNSPECIFIED = 0
+	EC_SECPRIME    = 1
+	EC_BRAINPOOL   = 2
+	EC_BRAINTWIST  = 3
+	EC_SECPK       = 4
+	EC_EDWARDS     = 5
+
+	// KeyConfig.SigningType
+	SIGN_DEFAULT = 0
+	SIGN_CERT    = 1
+	SIGN_DATA    = 2
+)
+
 type KeyConfig struct {
 	// CKA_LABEL
 	Label string
@@ -23,17 +38,12 @@ type KeyConfig struct {
 	// The mechanism will be auto populated but it can be manually set
 	Mechanism []*pkcs11.Mechanism
 
-	CurveType int
-}
+	// SECPRIME, SECPK
+	CurveType uint
 
-const (
-	EC_UNSPECIFIED = 0
-	EC_SECPRIME    = 1
-	EC_BRAINPOOL   = 2
-	EC_BRAINTWIST  = 3
-	EC_SECPK       = 4
-	EC_EDWARDS     = 5
-)
+	// CERT SIGNING (difference in EC for CERT SIGNING), DATA SIGNING
+	SigningType uint
+}
 
 type KeyConfigKeyPairTemplate struct {
 	keyConfig             KeyConfig

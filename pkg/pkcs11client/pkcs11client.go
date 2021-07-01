@@ -169,6 +169,11 @@ func (p *Pkcs11Client) SignCertECDSA(csrData []byte, signer *HsmSigner) (cert []
 	return
 }
 
+func (p *Pkcs11Client) SignDataECDSA(data []byte, signer *HsmSigner) (res []byte, err error) {
+	res, err = p.signCert(data, signer, pkcs11.CKK_EC, pkcs11.CKM_ECDSA)
+	return
+}
+
 // EDDSA uses the Edwards Ed25519 elliptic curve in FIPS 186-5
 // https://csrc.nist.gov/publications/detail/fips/186/5/draft
 func (p *Pkcs11Client) SignCertEDDSA(csrData []byte, signer *HsmSigner) (cert []byte, err error) {

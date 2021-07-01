@@ -53,7 +53,7 @@ func (t HsmSigner) Public() crypto.PublicKey {
 	return t.PublicKey
 }
 
-func (t HsmSigner) Sign(_ io.Reader, digest []byte, opts crypto.SignerOpts) (signedCsr []byte, err error) {
+func (t HsmSigner) Sign(_ io.Reader, digest []byte, opts crypto.SignerOpts) (signedData []byte, err error) {
 
 	t.refreshMutex.Lock()
 
@@ -71,17 +71,21 @@ func (t HsmSigner) Sign(_ io.Reader, digest []byte, opts crypto.SignerOpts) (sig
 		case *rsa.PublicKey:
 			if pssOpts, ok := opts.(*rsa.PSSOptions); ok {
 				t.SignerOpts = pssOpts
-				signedCsr, err = t.Pkcs11Client.SignCertRSAPSS(digest, &t)
+				signedData, err = t.Pkcs11Client.SignCertRSAPSS(digest, &t)
 			} else {
 				digestWithHeader := append(digestInfos[opts.HashFunc()], digest...)
-				signedCsr, err = t.Pkcs11Client.SignCertRSA(digestWithHeader, &t)
+				signedData, err = t.Pkcs11Client.SignCertRSA(digestWithHeader, &t)
 			}
 		case *dsa.PublicKey:
-			signedCsr, err = t.Pkcs11Client.SignCertDSA(digest, &t)
+			signedData, err = t.Pkcs11Client.SignCertDSA(digest, &t)
 		case *ecdsa.PublicKey:
-			signedCsr, err = t.Pkcs11Client.SignCertECDSA(digest, &t)
+			if t.KeyConfig.SigningType == SIGN_DATA {
+				signedData, err = t.Pkcs11Client.SignDataECDSA(digest, &t)
+			} else {
+				signedData, err = t.Pkcs11Client.SignCertECDSA(digest, &t)
+			}
 		case *ed25519.PublicKey:
-			signedCsr, err = t.Pkcs11Client.SignCertEDDSA(digest, &t)
+			signedData, err = t.Pkcs11Client.SignCertEDDSA(digest, &t)
 		default:
 			err = errors.New("Unsupported PublicKey type")
 		}
@@ -106,6 +110,6 @@ func (t HsmSigner) Sign(_ io.Reader, digest []byte, opts crypto.SignerOpts) (sig
 		t.Pkcs11Client.LastErrCode = PKCS11ERR_GENERICERROR
 		return nil, err
 	} else {
-		return signedCsr, nil
+		return signedData, nil
 	}
 }

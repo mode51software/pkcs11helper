@@ -216,8 +216,8 @@ func TestCreateECKeyPairSecP256k1(t *testing.T) {
 
 	if err := pkcs11Client.CheckExistsCreateKeyPair(
 		&KeyConfig{
-			Label:     "testkey44",
-			Id:        []byte{44},
+			Label:     "testkey45",
+			Id:        []byte{45},
 			Type:      pkcs11.CKK_EC,
 			KeyBits:   256,
 			CurveType: EC_SECPK}); err != nil {
