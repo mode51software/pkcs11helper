@@ -169,6 +169,11 @@ func (p *Pkcs11Client) SignCertECDSA(csrData []byte, signer *HsmSigner) (cert []
 	return
 }
 
+func (p *Pkcs11Client) SignDataECDSA(data []byte, signer *HsmSigner) (res []byte, err error) {
+	res, err = p.signCert(data, signer, pkcs11.CKK_EC, pkcs11.CKM_ECDSA)
+	return
+}
+
 // EDDSA uses the Edwards Ed25519 elliptic curve in FIPS 186-5
 // https://csrc.nist.gov/publications/detail/fips/186/5/draft
 func (p *Pkcs11Client) SignCertEDDSA(csrData []byte, signer *HsmSigner) (cert []byte, err error) {
@@ -193,6 +198,14 @@ func (p *Pkcs11Client) signCert(csrData []byte, signer *HsmSigner, privKeyType i
 	var fullAttribs []*pkcs11.Attribute
 	if fullAttribs, err = (*signer).KeyConfig.appendKeyIdentity(attribs); err != nil {
 		return nil, err
+	}
+	if signer.KeyConfig.CurveType == EC_SECPK {
+		curveName := CURVE_P256K1
+		if curveOID, err := asn1.Marshal(curveOIDs[curveName]); err != nil {
+			return nil, errors.New(ERR_UNSUPPORTEDCURVESIZE)
+		} else {
+			fullAttribs = append(fullAttribs, pkcs11.NewAttribute(pkcs11.CKA_EC_PARAMS, curveOID))
+		}
 	}
 
 	err = p.context.FindObjectsInit(p.session, fullAttribs)

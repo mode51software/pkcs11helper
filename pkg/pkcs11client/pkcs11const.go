@@ -3,6 +3,7 @@ package pkcs11client
 import (
 	"crypto/elliptic"
 	"encoding/asn1"
+	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/miekg/pkcs11"
 )
 
@@ -37,9 +38,11 @@ var curveOIDs = map[string]asn1.ObjectIdentifier{
 // https://github.com/letsencrypt/boulder/blob/release-2021-02-08/pkcs11helpers/helpers.go#L208
 // oidDERToCurve maps the hex of the DER encoding of the various curve OIDs to
 // the relevant curve parameters
+// openssl ecparam -out ec_param.der -outform DER -name secp256k1
 var oidDERToCurve = map[string]elliptic.Curve{
 	"06052B81040021":       elliptic.P224(),
 	"06082A8648CE3D030107": elliptic.P256(),
 	"06052B81040022":       elliptic.P384(),
 	"06052B81040023":       elliptic.P521(),
+	"06052B8104000A":       secp256k1.S256(),
 }
