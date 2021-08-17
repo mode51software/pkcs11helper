@@ -4,9 +4,11 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"github.com/miekg/pkcs11"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
@@ -212,6 +214,7 @@ func TestDeleteKeyPair(t *testing.T) {
 }
 
 func TestCreateECKeyPairSecP256k1(t *testing.T) {
+
 	registerTest(t)
 
 	if err := pkcs11Client.CheckExistsCreateKeyPair(
@@ -223,4 +226,46 @@ func TestCreateECKeyPairSecP256k1(t *testing.T) {
 			CurveType: EC_SECPK}); err != nil {
 		t.Error(err)
 	}
+}
+
+// https://verschlüsselt.it/full-working-ecdsa-signature-with-openssl/
+func TestSignECDataSecP256k1(t *testing.T) {
+
+	registerTest(t)
+
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+
+	acctIDStr := "testimport3"
+	keyConfig := KeyConfig{Label: acctIDStr}
+
+	pubKey, err := pkcs11Client.ReadECPublicKey(&keyConfig)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// pkcs#11 sign ECDSA data
+	var signer HsmSigner
+	signer.KeyConfig.Label = acctIDStr
+	signer.KeyConfig.SigningType = SIGN_DATA
+	signer.Pkcs11Client = &pkcs11Client
+	signer.PublicKey = pubKey
+	signer.KeyConfig.CurveType = EC_SECPK
+
+	signData := "bc4c915d69896b198f0292a72373a2bdcd0d52bccbfcec11d9c84c0fff71b0bc"
+	toSignByt, err := hex.DecodeString(signData)
+
+	/*	hash := sha3.NewLegacyKeccak256()
+
+		var buf []byte
+		//hash.Write([]byte{0xcc})
+		hash.Write(toSignByt)
+		buf = hash.Sum(nil)
+	*/
+	signed, err := pkcs11Client.SignDataECDSA(toSignByt, &signer)
+	if err != nil {
+		t.Error(err)
+	} else {
+		t.Log(hex.EncodeToString(signed))
+	}
+
 }

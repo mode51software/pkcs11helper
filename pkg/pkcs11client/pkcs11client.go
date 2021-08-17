@@ -199,6 +199,14 @@ func (p *Pkcs11Client) signCert(csrData []byte, signer *HsmSigner, privKeyType i
 	if fullAttribs, err = (*signer).KeyConfig.appendKeyIdentity(attribs); err != nil {
 		return nil, err
 	}
+	if signer.KeyConfig.CurveType == EC_SECPK {
+		curveName := CURVE_P256K1
+		if curveOID, err := asn1.Marshal(curveOIDs[curveName]); err != nil {
+			return nil, errors.New(ERR_UNSUPPORTEDCURVESIZE)
+		} else {
+			fullAttribs = append(fullAttribs, pkcs11.NewAttribute(pkcs11.CKA_EC_PARAMS, curveOID))
+		}
+	}
 
 	err = p.context.FindObjectsInit(p.session, fullAttribs)
 	if err != nil {
