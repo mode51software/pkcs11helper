@@ -188,7 +188,7 @@ func (kp *KeyConfigKeyPairTemplate) GenDefaultKeySecurityTemplate() {
 		IsPrivate:          true,
 		IsSensitive:        true,
 		IsAlwaysSensitive:  true,
-		IsModifiable:       false,
+		IsModifiable:       true,
 		IsExtractable:      false,
 		IsNeverExtractable: true,
 	}
